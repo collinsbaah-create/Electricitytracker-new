@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>VoltTrack Pro</title>
+<meta name="theme-color" content="#0B0D10">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="VoltTrack">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0B0D10; --panel:#14171C; --panel-2:#1B1F26; --line:#262B33;
+  --copper:#E8893A; --copper-dim:#8A4F22; --brass:#D4AF6A;
+  --live:#39D98A; --warn:#F2C94C; --danger:#E85D5D;
+  --apt:#5EB1EF; --hub:#C97FE0; --office:#E8893A;
+  --text:#EDEFF2; --text-dim:#8A929E;
+  --font-d:'Space Grotesk',sans-serif; --font-m:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{background:var(--bg);color:var(--text);font-family:var(--font-d);min-height:100vh;padding-bottom:48px;}
+.app{max-width:1200px;margin:0 auto;padding:16px;}
+
+/* topbar */
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap;}
+.brand{display:flex;align-items:center;gap:12px;}
+.brand-mark{width:46px;height:46px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a2118,var(--bg) 70%);border:2px solid var(--copper-dim);position:relative;flex-shrink:0;}
+.brand-mark::before{content:'';position:absolute;inset:6px;border-radius:50%;border:1px dashed var(--copper-dim);}
+.brand-mark::after{content:'';position:absolute;top:50%;left:50%;width:2px;height:14px;background:var(--copper);transform-origin:bottom center;transform:translate(-50%,-100%) rotate(35deg);box-shadow:0 0 6px var(--copper);animation:needle 4s ease-in-out infinite;}
+@keyframes needle{0%,100%{transform:translate(-50%,-100%) rotate(20deg);}50%{transform:translate(-50%,-100%) rotate(75deg);}}
+.brand-text h1{font-size:19px;font-weight:700;}
+.brand-text span{font-size:11px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;}
+.live-pill{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);padding:6px 12px;border-radius:20px;font-size:11px;color:var(--text-dim);letter-spacing:0.5px;}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--live);box-shadow:0 0 8px var(--live);animation:pulse 1.8s infinite;flex-shrink:0;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+
+/* offline banner */
+.offline-banner{background:#2a1f00;border:1px solid #8a6000;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;display:none;align-items:center;gap:10px;}
+.offline-banner.show{display:flex;}
+.offline-banner .icon{font-size:18px;}
+.offline-banner b{color:var(--warn);}
+
+/* role tabs */
+.role-tabs{display:flex;gap:8px;margin-bottom:20px;}
+.role-tab{flex:1;padding:14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--text-dim);font-family:var(--font-d);font-weight:600;font-size:14px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;}
+.role-tab.active{background:linear-gradient(135deg,#2a2017,var(--panel-2));border-color:var(--copper);color:var(--copper);}
+.role-tab svg{width:18px;height:18px;}
+
+/* cards */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;}
+.card-title{font-size:13px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);margin-bottom:14px;font-weight:600;}
+
+/* tech chips */
+.tech-select{display:flex;gap:8px;flex-wrap:wrap;}
+.tech-chip{padding:12px 18px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);color:var(--text-dim);font-weight:600;cursor:pointer;font-size:15px;transition:all .15s;}
+.tech-chip.active{border-color:var(--brass);color:var(--brass);background:#2a2417;}
+
+/* meter grid */
+.meter-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
+.meter-tile{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:14px 12px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden;}
+.meter-tile:active{transform:scale(0.97);}
+.meter-tile::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;}
+.meter-tile.cat-apt::before{background:var(--apt);}
+.meter-tile.cat-hub::before{background:var(--hub);}
+.meter-tile.cat-office::before{background:var(--office);}
+.meter-tile .cat-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);}
+.meter-tile .meter-name{font-weight:700;font-size:15px;margin:4px 0 8px;}
+.meter-tile .status-row{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim);}
+.status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.status-dot.done{background:var(--live);}
+.status-dot.pending{background:var(--warn);}
+.offline-badge{font-size:9px;background:#3a2f00;color:var(--warn);border-radius:4px;padding:1px 5px;margin-left:auto;}
+
+/* modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;z-index:100;}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:20px 20px 0 0;width:100%;max-width:520px;padding:22px;max-height:92vh;overflow-y:auto;animation:slideUp .25s ease;}
+@keyframes slideUp{from{transform:translateY(40px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+.modal h2{font-size:18px;margin-bottom:4px;}
+.modal .sub{font-size:12px;color:var(--text-dim);margin-bottom:18px;}
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;}
+.field input[type=number],.field input[type=text],.field textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:14px;color:var(--text);font-family:var(--font-m);font-size:20px;font-weight:700;}
+.field textarea{font-family:var(--font-d);font-size:14px;font-weight:400;}
+.photo-btn{width:100%;border:1px dashed var(--line);border-radius:10px;padding:18px;background:var(--panel-2);color:var(--text-dim);font-size:13px;text-align:center;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;}
+.photo-btn svg{width:22px;height:22px;flex-shrink:0;}
+.photo-preview{width:100%;border-radius:10px;margin-top:10px;max-height:200px;object-fit:cover;}
+.ai-assist-box{background:#1a2420;border:1px solid #2a5c44;border-radius:10px;padding:12px;margin-top:10px;font-size:13px;line-height:1.5;}
+.ai-assist-box.unavail{background:#241c14;border-color:var(--copper-dim);color:var(--text-dim);}
+.btn-primary{width:100%;background:linear-gradient(135deg,var(--copper),#c46f28);color:#1a0f05;border:none;border-radius:12px;padding:16px;font-weight:700;font-size:15px;cursor:pointer;font-family:var(--font-d);margin-top:6px;}
+.btn-secondary{width:100%;background:transparent;border:1px solid var(--line);color:var(--text-dim);border-radius:12px;padding:13px;font-weight:600;font-size:14px;cursor:pointer;margin-top:8px;font-family:var(--font-d);}
+.btn-ghost{background:var(--panel-2);border:1px solid var(--line);color:var(--brass);border-radius:8px;padding:8px 12px;font-size:12px;cursor:pointer;font-family:var(--font-d);font-weight:600;}
+
+/* office */
+.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px;}
+.stat-box{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:14px;}
+.stat-box .num{font-family:var(--font-m);font-size:26px;font-weight:700;}
+.stat-box .lbl{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;}
+.stat-box.clive .num{color:var(--live);}
+.stat-box.cwarn .num{color:var(--warn);}
+.stat-box.ccopper .num{color:var(--copper);}
+.tech-status-list{display:flex;flex-direction:column;gap:8px;}
+.tech-status-item{display:flex;align-items:center;justify-content:space-between;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;}
+.tech-status-item .nm{font-weight:600;font-size:14px;}
+.tech-status-item .ct{font-size:12px;color:var(--text-dim);}
+.badge{font-size:11px;padding:4px 10px;border-radius:20px;font-weight:600;}
+.badge.done{background:#16302280;color:var(--live);}
+.badge.pend{background:#3a2f1480;color:var(--warn);}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;color:var(--text-dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;padding:10px 8px;border-bottom:1px solid var(--line);}
+td{padding:10px 8px;border-bottom:1px solid var(--line);font-family:var(--font-m);}
+tr:last-child td{border-bottom:none;}
+.tag{font-size:10px;padding:2px 8px;border-radius:10px;font-family:var(--font-d);font-weight:600;}
+.tag.apt{background:#1a3147;color:var(--apt);}
+.tag.hub{background:#2e1e3a;color:var(--hub);}
+.tag.office{background:#3a2417;color:var(--office);}
+.filter-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.filter-row select,.filter-row input{background:var(--panel-2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 12px;font-family:var(--font-d);font-size:13px;}
+.chart-wrap{height:260px;position:relative;}
+.rename-list{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto;}
+.rename-row{display:flex;align-items:center;gap:8px;}
+.rename-row input{flex:1;background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;font-family:var(--font-d);}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--panel-2);border:1px solid var(--copper);color:var(--text);padding:12px 20px;border-radius:10px;font-size:13px;z-index:200;box-shadow:0 4px 20px rgba(0,0,0,0.4);white-space:nowrap;}
+.empty-state{text-align:center;padding:40px 20px;color:var(--text-dim);}
+@media print{body{background:#fff;color:#000;}.role-tabs,.live-pill,.offline-banner,.btn-primary,.btn-secondary,.filter-row,.no-print{display:none!important;}.card{border:1px solid #ccc;background:#fff;}td,th{color:#000;}}
+@media(max-width:600px){.topbar{flex-direction:column;align-items:flex-start;}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-text">
+        <h1>VoltTrack Pro</h1>
+        <span>WARC Electricity Monitoring</span>
+      </div>
+    </div>
+    <div class="live-pill"><div class="live-dot" id="liveDot"></div><span id="syncStatus">Starting…</span></div>
+  </div>
+
+  <div class="offline-banner" id="offlineBanner">
+    <span class="icon">📶</span>
+    <div><b>You're offline.</b> Readings are saved on this device and will sync automatically when you're back online.</div>
+  </div>
+
+  <div class="role-tabs">
+    <button class="role-tab active" id="tabTech" onclick="switchRole('tech')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="2" width="18" height="20" rx="2"/><line x1="8" y1="18" x2="16" y2="18"/></svg>
+      Technician
+    </button>
+    <button class="role-tab" id="tabOffice" onclick="switchRole('office')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>
+      Office Dashboard
+    </button>
+  </div>
+
+  <!-- TECHNICIAN -->
+  <div id="techView">
+    <div class="card">
+      <div class="card-title">Who's taking readings?</div>
+      <div class="tech-select" id="techSelect"></div>
+    </div>
+    <div class="card" id="techMetersCard" style="display:none;">
+      <div class="card-title">Tap a meter · <span id="todayLabel"></span></div>
+      <div class="meter-grid" id="meterGrid"></div>
+    </div>
+  </div>
+
+  <!-- OFFICE -->
+  <div id="officeView" style="display:none;">
+    <div class="stat-row">
+      <div class="stat-box clive"><div class="num" id="statDone">0</div><div class="lbl">Logged Today</div></div>
+      <div class="stat-box cwarn"><div class="num" id="statPend">0</div><div class="lbl">Pending Today</div></div>
+      <div class="stat-box ccopper"><div class="num" id="statKwh">0</div><div class="lbl">kWh This Month</div></div>
+      <div class="stat-box"><div class="num" id="statMeters">17</div><div class="lbl">Total Meters</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Technician Activity — Today</div>
+      <div class="tech-status-list" id="techStatusList"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Consumption Trend — Last 30 Days (kWh)</div>
+      <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Consumption by Category (All Time)</div>
+      <div class="chart-wrap"><canvas id="categoryChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Reading Log <button class="btn-ghost no-print" style="float:right" onclick="window.print()">🖨 Print</button></div>
+      <div class="filter-row no-print">
+        <select id="filterCat" onchange="renderLog()"><option value="">All categories</option><option value="apt">Apartments</option><option value="hub">Megahubs</option><option value="office">Offices</option></select>
+        <select id="filterTech" onchange="renderLog()"><option value="">All technicians</option></select>
+        <input type="date" id="filterDate" onchange="renderLog()">
+      </div>
+      <div style="overflow-x:auto;">
+        <table><thead><tr><th>Date</th><th>Time</th><th>Meter</th><th>Category</th><th>Reading (kWh)</th><th>Usage Δ</th><th>Technician</th><th>Photo</th></tr></thead>
+        <tbody id="logBody"></tbody></table>
+      </div>
+      <div id="emptyLog" class="empty-state" style="display:none;">No readings match this filter.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Rename Meters &amp; Manage Technicians</div>
+      <div style="margin-bottom:16px;">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Meters</div>
+        <div class="rename-list" id="renameList"></div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Technicians</div>
+        <div class="rename-list" id="techRenameList"></div>
+        <button class="btn-secondary" onclick="addTechnician()" style="margin-top:10px;width:auto;padding:10px 18px;">+ Add Technician</button>
+      </div>
+      <button class="btn-primary" onclick="saveRenames()">Save All Changes</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Daily Reading Schedule</div>
+      <p style="font-size:13px;color:var(--text-dim);line-height:1.7;">Technicians are scheduled for <b style="color:var(--text)">every weekday at 8:10 AM</b>. Meters not yet logged show an amber pending dot. Tap below to set a hard alarm on this device.</p>
+      <button class="btn-secondary" onclick="requestAlarm()" style="margin-top:10px;">⏰ Set 8:10 AM Weekday Alarm on This Device</button>
+    </div>
+  </div>
+</div>
+
+<!-- ENTRY MODAL -->
+<div class="modal-overlay" id="modalOverlay" style="display:none;">
+  <div class="modal">
+    <h2 id="modalTitle">Meter</h2>
+    <div class="sub" id="modalSub"></div>
+    <div class="field">
+      <label>Photo of meter (optional)</label>
+      <label class="photo-btn" for="photoInput">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Take / Upload Photo
+      </label>
+      <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none;" onchange="handlePhoto(event)">
+      <img id="photoPreview" class="photo-preview" style="display:none;">
+      <div id="aiBox" style="display:none;"></div>
+    </div>
+    <div class="field">
+      <label>Reading (kWh)</label>
+      <input type="number" id="readingInput" inputmode="decimal" placeholder="e.g. 4821.6" step="0.1">
+    </div>
+    <div class="field">
+      <label>Notes (optional)</label>
+      <textarea id="notesInput" rows="2" placeholder="Anything unusual…"></textarea>
+    </div>
+    <button class="btn-primary" onclick="submitReading()">Submit Reading</button>
+    <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+  </div>
+</div>
+
+<div id="toast" style="display:none;" class="toast"></div>
+
+<script>
+/* ============================================================
+   CONFIG
+============================================================ */
+const BIN_ID  = '6a47e4cbf5f4af5e295b388b';
+const API_KEY = '$2a$10$UMtiHSMnmVstU0jUQxsnI.mXMbrkwf7mNYAcdyR1C4UiqqH.jar3O';
+const JSONBIN = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+const LS_DB   = 'volttrack_db_v2';
+const LS_Q    = 'volttrack_queue_v2';
+
+/* ============================================================
+   STATE
+============================================================ */
+let DB = { meters:[], technicians:['Isaiah Nartey','Lawrence Mensah'], readings:[] };
+let offlineQueue = [];   // readings pending server push
+let currentRole  = 'tech';
+let currentTech  = null;
+let activeMeter  = null;
+let photoDataUrl = null;
+let saveTimer    = null;
+let isSyncing    = false;
+let isOnline     = navigator.onLine;
+let trendChart, categoryChart;
+
+/* ============================================================
+   CONNECTIVITY
+============================================================ */
+window.addEventListener('online',  () => { isOnline=true;  updateBadge(); flushQueue(); });
+window.addEventListener('offline', () => { isOnline=false; updateBadge(); });
+
+function updateBadge(){
+  const dot  = document.getElementById('liveDot');
+  const txt  = document.getElementById('syncStatus');
+  const banner = document.getElementById('offlineBanner');
+  const q    = offlineQueue.length;
+  banner.classList.toggle('show', !isOnline);
+  if(!isOnline){
+    dot.style.cssText  = 'background:#F2C94C;box-shadow:0 0 8px #F2C94C;';
+    txt.textContent    = q ? `Offline · ${q} queued` : 'Offline · saved locally';
+  } else if(isSyncing){
+    dot.style.cssText  = 'background:#5EB1EF;box-shadow:0 0 8px #5EB1EF;animation:none;';
+    txt.textContent    = 'Syncing…';
+  } else if(q){
+    dot.style.cssText  = 'background:#F2C94C;box-shadow:0 0 8px #F2C94C;';
+    txt.textContent    = `Uploading ${q} queued…`;
+  } else {
+    dot.style.cssText  = '';   // restore CSS class defaults
+    txt.textContent    = 'Live sync active';
+  }
+}
+
+/* ============================================================
+   LOCAL STORAGE
+============================================================ */
+function defaultMeters(){
+  const m=[];
+  for(let i=1;i<=6;i++) m.push({id:'apt-'+i,  name:'Apt-'+i,     cat:'apt'});
+  for(let i=1;i<=7;i++) m.push({id:'hub-'+i,  name:'Megahub-'+i, cat:'hub'});
+  for(let i=1;i<=4;i++) m.push({id:'off-'+i,  name:'Office-'+i,  cat:'office'});
+  return m;
+}
+function saveLocal(){
+  try{ localStorage.setItem(LS_DB, JSON.stringify(DB)); }catch(e){}
+  try{ localStorage.setItem(LS_Q,  JSON.stringify(offlineQueue)); }catch(e){}
+}
+function loadLocal(){
+  try{ const r=localStorage.getItem(LS_DB); if(r) DB=JSON.parse(r); else DB.meters=defaultMeters(); }
+  catch(e){ DB.meters=defaultMeters(); }
+  try{ const q=localStorage.getItem(LS_Q); if(q) offlineQueue=JSON.parse(q); }
+  catch(e){ offlineQueue=[]; }
+}
+
+/* ============================================================
+   JSONBIN
+============================================================ */
+async function loadDB(){
+  loadLocal();       // render INSTANTLY from cache
+  renderAll();
+  updateBadge();
+  if(isOnline) await pullRemote();
+  if(isOnline && offlineQueue.length) await flushQueue();
+}
+
+async function pullRemote(){
+  try{
+    isSyncing=true; updateBadge();
+    const r=await fetch(JSONBIN+'/latest',{headers:{'X-Access-Key':API_KEY}});
+    if(!r.ok) throw 0;
+    const j=await r.json();
+    if(j.record && j.record.meters && j.record.meters.length){
+      DB=j.record;
+      saveLocal();
+      renderAll();
+    }
+  }catch(e){}
+  isSyncing=false; updateBadge();
+}
+
+async function pushRemote(){
+  try{
+    isSyncing=true; updateBadge();
+    const r=await fetch(JSONBIN,{method:'PUT',headers:{'Content-Type':'application/json','X-Access-Key':API_KEY},body:JSON.stringify(DB)});
+    isSyncing=false; updateBadge();
+    return r.ok;
+  }catch(e){ isSyncing=false; updateBadge(); return false; }
+}
+
+async function addReading(reading){
+  DB.readings.push(reading);
+  saveLocal();
+  renderAll();
+  if(isOnline){
+    const ok=await pushRemote();
+    if(!ok){ offlineQueue.push(reading.id); saveLocal(); updateBadge(); }
+  } else {
+    offlineQueue.push(reading.id);
+    saveLocal();
+    updateBadge();
+  }
+}
+
+async function flushQueue(){
+  if(!offlineQueue.length||!isOnline) return;
+  updateBadge();
+  const ok=await pushRemote();
+  if(ok){ offlineQueue=[]; saveLocal(); updateBadge(); showToast('✓ Offline readings synced'); }
+}
+
+function queueSave(){
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(async()=>{ saveLocal(); if(isOnline) await pushRemote(); },700);
+}
+
+// Live poll every 10s for office dashboard
+setInterval(async()=>{
+  if(!isOnline||isSyncing) return;
+  try{
+    const r=await fetch(JSONBIN+'/latest',{headers:{'X-Access-Key':API_KEY}});
+    if(!r.ok) return;
+    const j=await r.json();
+    const rem=j.record;
+    if(rem&&rem.readings&&rem.readings.length!==DB.readings.length){ DB=rem; saveLocal(); renderAll(); }
+  }catch(e){}
+},10000);
+
+/* ============================================================
+   ROLE
+============================================================ */
+function switchRole(role){
+  currentRole=role;
+  document.getElementById('tabTech').classList.toggle('active',role==='tech');
+  document.getElementById('tabOffice').classList.toggle('active',role==='office');
+  document.getElementById('techView').style.display=role==='tech'?'block':'none';
+  document.getElementById('officeView').style.display=role==='office'?'block':'none';
+  if(role==='office') renderOffice();
+}
+
+/* ============================================================
+   TECH VIEW
+============================================================ */
+function renderTechSelect(){
+  const w=document.getElementById('techSelect');
+  w.innerHTML='';
+  DB.technicians.forEach(t=>{
+    const c=document.createElement('div');
+    c.className='tech-chip'+(currentTech===t?' active':'');
+    c.textContent=t;
+    c.onclick=()=>{ currentTech=t; renderTechSelect(); renderMeterGrid(); };
+    w.appendChild(c);
+  });
+}
+
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+
+function lastFor(mid){ return [...DB.readings].filter(r=>r.meterId===mid).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time))[0]||null; }
+
+function renderMeterGrid(){
+  const card=document.getElementById('techMetersCard');
+  if(!currentTech){ card.style.display='none'; return; }
+  card.style.display='block';
+  document.getElementById('todayLabel').textContent=new Date().toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'});
+  const grid=document.getElementById('meterGrid');
+  grid.innerHTML='';
+  const today=todayStr();
+  DB.meters.forEach(m=>{
+    const done=DB.readings.find(r=>r.meterId===m.id&&r.date===today);
+    const last=lastFor(m.id);
+    const isQueued=!done && offlineQueue.length>0;
+    const tile=document.createElement('div');
+    tile.className='meter-tile cat-'+m.cat;
+    tile.onclick=()=>openModal(m);
+    tile.innerHTML=`
+      <div class="cat-label">${catLabel(m.cat)}</div>
+      <div class="meter-name">${m.name}</div>
+      <div class="status-row">
+        <div class="status-dot ${done?'done':'pending'}"></div>
+        <span>${done?'Logged today':(last?'Last: '+last.value+' kWh':'No data yet')}</span>
+        ${!done&&offlineQueue.length?'<span class="offline-badge">OFFLINE</span>':''}
+      </div>`;
+    grid.appendChild(tile);
+  });
+}
+
+function catLabel(c){ return {apt:'Apartment',hub:'Megahub',office:'Office'}[c]||c; }
+
+/* ============================================================
+   MODAL
+============================================================ */
+function openModal(meter){
+  activeMeter=meter; photoDataUrl=null;
+  document.getElementById('modalTitle').textContent=meter.name;
+  document.getElementById('modalSub').textContent=catLabel(meter.cat)+' · Logging as '+currentTech+(isOnline?'':' · OFFLINE MODE');
+  document.getElementById('readingInput').value='';
+  document.getElementById('notesInput').value='';
+  document.getElementById('photoPreview').style.display='none';
+  document.getElementById('aiBox').style.display='none';
+  document.getElementById('photoInput').value='';
+  document.getElementById('modalOverlay').style.display='flex';
+}
+function closeModal(){ document.getElementById('modalOverlay').style.display='none'; activeMeter=null; }
+
+function handlePhoto(e){
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    photoDataUrl=ev.target.result;
+    document.getElementById('photoPreview').src=photoDataUrl;
+    document.getElementById('photoPreview').style.display='block';
+    tryAI(photoDataUrl);
+  };
+  reader.readAsDataURL(file);
+}
+
+async function tryAI(dataUrl){
+  const box=document.getElementById('aiBox');
+  box.style.display='block';
+  box.className='ai-assist-box';
+  box.innerHTML='🤖 Reading meter display with AI…';
+  try{
+    const base64=dataUrl.split(',')[1];
+    const mime=dataUrl.match(/data:(.*?);base64/)[1];
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-6', max_tokens:150,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:mime,data:base64}},
+          {type:'text',text:'Read the numeric kWh value shown on this electricity meter display. Respond ONLY with the number. If unreadable, respond: UNREADABLE'}
+        ]}]
+      })
+    });
+    if(!res.ok) throw 0;
+    const data=await res.json();
+    const txt=data.content.map(b=>b.text||'').join('').trim();
+    if(txt==='UNREADABLE'||!txt){
+      box.innerHTML='⚠️ Could not read display clearly — please enter the reading manually below.';
+    } else {
+      box.innerHTML=`✅ AI read: <b style="font-family:var(--font-m)">${txt}</b> kWh — confirm or correct below.`;
+      document.getElementById('readingInput').value=txt;
+    }
+  }catch(e){
+    box.className='ai-assist-box unavail';
+    box.innerHTML='📷 Photo saved. AI auto-read is only available inside Claude — enter the reading below.';
+  }
+}
+
+async function submitReading(){
+  const val=parseFloat(document.getElementById('readingInput').value);
+  if(isNaN(val)){ showToast('Enter a valid reading first'); return; }
+  if(!activeMeter||!currentTech) return;
+  const last=lastFor(activeMeter.id);
+  const usage=last!=null?(val-last.value):null;
+  const now=new Date();
+  const reading={
+    id:'r_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+    meterId:activeMeter.id, value:val, usage,
+    tech:currentTech,
+    date:now.toISOString().slice(0,10),
+    time:now.toTimeString().slice(0,5),
+    notes:document.getElementById('notesInput').value.trim(),
+    photo:photoDataUrl
+  };
+  closeModal();
+  await addReading(reading);
+  showToast(isOnline ? '✓ Reading saved & synced' : '✓ Reading saved — will sync when online');
+}
+
+/* ============================================================
+   OFFICE
+============================================================ */
+function renderOffice(){
+  const today=todayStr();
+  const doneSet=new Set(DB.readings.filter(r=>r.date===today).map(r=>r.meterId));
+  document.getElementById('statDone').textContent=doneSet.size;
+  document.getElementById('statPend').textContent=Math.max(0,DB.meters.length-doneSet.size);
+  document.getElementById('statMeters').textContent=DB.meters.length;
+  const mp=today.slice(0,7);
+  const mUsage=DB.readings.filter(r=>r.date.startsWith(mp)&&r.usage!=null).reduce((s,r)=>s+r.usage,0);
+  document.getElementById('statKwh').textContent=Math.round(mUsage).toLocaleString();
+
+  const list=document.getElementById('techStatusList');
+  list.innerHTML='';
+  DB.technicians.forEach(t=>{
+    const tc=DB.readings.filter(r=>r.tech===t&&r.date===today).length;
+    const all=DB.readings.filter(r=>r.tech===t).length;
+    const item=document.createElement('div');
+    item.className='tech-status-item';
+    item.innerHTML=`<div><div class="nm">${t}</div><div class="ct">${all} total readings</div></div>
+      <div class="badge ${tc?'done':'pend'}">${tc?tc+' logged today':'Nothing today'}</div>`;
+    list.appendChild(item);
+  });
+
+  populateFilters(); renderLog(); renderCharts(); renderRenameLists();
+}
+
+function populateFilters(){
+  const s=document.getElementById('filterTech');
+  const cur=s.value;
+  s.innerHTML='<option value="">All technicians</option>'+DB.technicians.map(t=>`<option value="${t}">${t}</option>`).join('');
+  s.value=cur;
+}
+
+function renderLog(){
+  const cat=document.getElementById('filterCat').value;
+  const tech=document.getElementById('filterTech').value;
+  const date=document.getElementById('filterDate').value;
+  let rows=[...DB.readings].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
+  rows=rows.filter(r=>{
+    const m=DB.meters.find(x=>x.id===r.meterId); if(!m) return false;
+    if(cat&&m.cat!==cat) return false;
+    if(tech&&r.tech!==tech) return false;
+    if(date&&r.date!==date) return false;
+    return true;
+  });
+  const body=document.getElementById('logBody');
+  body.innerHTML='';
+  document.getElementById('emptyLog').style.display=rows.length?'none':'block';
+  rows.slice(0,300).forEach(r=>{
+    const m=DB.meters.find(x=>x.id===r.meterId);
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${r.date}</td><td>${r.time}</td>
+      <td>${m?m.name:'—'}</td>
+      <td><span class="tag ${m?m.cat:''}">${m?catLabel(m.cat):''}</span></td>
+      <td>${r.value}</td>
+      <td>${r.usage!=null?(r.usage>=0?'+':'')+r.usage.toFixed(1):'—'}</td>
+      <td style="font-family:var(--font-d);">${r.tech}</td>
+      <td>${r.photo?'📷':'—'}</td>`;
+    body.appendChild(tr);
+  });
+}
+
+function renderCharts(){
+  const days=[]; for(let i=29;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); days.push(d.toISOString().slice(0,10)); }
+  const totals=days.map(d=>DB.readings.filter(r=>r.date===d&&r.usage!=null).reduce((s,r)=>s+r.usage,0));
+  const tCtx=document.getElementById('trendChart');
+  if(trendChart) trendChart.destroy();
+  trendChart=new Chart(tCtx,{type:'line',data:{labels:days.map(d=>d.slice(5)),datasets:[{label:'kWh',data:totals,borderColor:'#E8893A',backgroundColor:'rgba(232,137,58,0.12)',fill:true,tension:0.35,pointRadius:0,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8A929E',maxTicksLimit:8},grid:{color:'#262B33'}},y:{ticks:{color:'#8A929E'},grid:{color:'#262B33'}}}}});
+
+  const cats={apt:0,hub:0,office:0};
+  DB.readings.filter(r=>r.usage!=null).forEach(r=>{ const m=DB.meters.find(x=>x.id===r.meterId); if(m) cats[m.cat]+=r.usage; });
+  const cCtx=document.getElementById('categoryChart');
+  if(categoryChart) categoryChart.destroy();
+  categoryChart=new Chart(cCtx,{type:'bar',data:{labels:['Apartments','Megahubs','Offices'],datasets:[{data:[cats.apt,cats.hub,cats.office],backgroundColor:['#5EB1EF','#C97FE0','#E8893A'],borderRadius:8}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8A929E'},grid:{display:false}},y:{ticks:{color:'#8A929E'},grid:{color:'#262B33'}}}}});
+}
+
+/* ============================================================
+   RENAME
+============================================================ */
+function renderRenameLists(){
+  const w=document.getElementById('renameList');
+  w.innerHTML='';
+  DB.meters.forEach((m,i)=>{
+    const row=document.createElement('div'); row.className='rename-row';
+    row.innerHTML=`<span class="tag ${m.cat}" style="flex-shrink:0;">${catLabel(m.cat)}</span><input type="text" value="${m.name}" data-idx="${i}" class="meterNameInput">`;
+    w.appendChild(row);
+  });
+  const tw=document.getElementById('techRenameList');
+  tw.innerHTML='';
+  DB.technicians.forEach((t,i)=>{
+    const row=document.createElement('div'); row.className='rename-row';
+    row.innerHTML=`<input type="text" value="${t}" data-idx="${i}" class="techNameInput" placeholder="Technician name">`;
+    tw.appendChild(row);
+  });
+}
+
+function addTechnician(){ DB.technicians.push('New Technician'); renderRenameLists(); }
+
+function saveRenames(){
+  document.querySelectorAll('.meterNameInput').forEach(inp=>{
+    const v=inp.value.trim(); if(v) DB.meters[+inp.dataset.idx].name=v;
+  });
+  const old=[...DB.technicians];
+  document.querySelectorAll('.techNameInput').forEach(inp=>{
+    const i=+inp.dataset.idx; const v=inp.value.trim();
+    if(v&&v!==old[i]){ DB.readings.forEach(r=>{ if(r.tech===old[i]) r.tech=v; }); DB.technicians[i]=v; }
+  });
+  if(currentTech&&!DB.technicians.includes(currentTech)) currentTech=null;
+  queueSave();
+  renderAll();
+  showToast('Changes saved');
+}
+
+/* ============================================================
+   ALARM
+============================================================ */
+function requestAlarm(){
+  if('Notification' in window){
+    Notification.requestPermission().then(p=>{
+      if(p==='granted') showToast('Notifications enabled — tell me in chat to set the 8:10am alarm');
+      else showToast('Notification permission denied — set alarm in your phone clock app');
+    });
+  } else {
+    showToast('Set a recurring 8:10 AM weekday alarm in your phone clock app');
+  }
+}
+
+/* ============================================================
+   MISC
+============================================================ */
+function showToast(msg, dur=2800){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.display='block';
+  setTimeout(()=>t.style.display='none', dur);
+}
+
+function renderAll(){
+  renderTechSelect();
+  renderMeterGrid();
+  if(currentRole==='office') renderOffice();
+}
+
+loadDB();
+</script>
+</body>
+</html>

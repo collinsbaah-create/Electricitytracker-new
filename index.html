@@ -330,11 +330,16 @@ function loadLocal(){
    JSONBIN
 ============================================================ */
 async function loadDB(){
-  loadLocal();       // render INSTANTLY from cache
-  renderAll();
+  loadLocal();
+  // ALWAYS guarantee meters exist
+  if(!DB.meters||DB.meters.length===0) DB.meters=defaultMeters();
+  if(!DB.technicians||DB.technicians.length===0) DB.technicians=['Isaiah Nartey','Lawrence Mensah'];
+  if(!DB.readings) DB.readings=[];
+  saveLocal();
+  renderAll();   // render INSTANTLY with guaranteed data
   updateBadge();
   if(isOnline) await pullRemote();
-  if(isOnline && offlineQueue.length) await flushQueue();
+  if(isOnline&&offlineQueue.length) await flushQueue();
 }
 
 async function pullRemote(){
@@ -343,11 +348,18 @@ async function pullRemote(){
     const r=await fetch(JSONBIN+'/latest',{headers:{'X-Access-Key':API_KEY}});
     if(!r.ok) throw 0;
     const j=await r.json();
-    if(j.record && j.record.meters && j.record.meters.length){
-      DB=j.record;
-      saveLocal();
-      renderAll();
+    const rec=j.record;
+    if(rec&&rec.meters&&rec.meters.length){
+      // Merge: keep any local readings not yet on server
+      const localOnly=DB.readings.filter(lr=>!rec.readings.find(rr=>rr.id===lr.id));
+      DB=rec;
+      if(localOnly.length) DB.readings.push(...localOnly);
+    } else {
+      // Bin empty — push defaults up so it initialises
+      await pushRemote();
     }
+    saveLocal();
+    renderAll();
   }catch(e){}
   isSyncing=false; updateBadge();
 }

@@ -335,7 +335,14 @@ async function loadDB(){
   if(!DB.meters||DB.meters.length===0) DB.meters=defaultMeters();
   if(!DB.technicians||DB.technicians.length===0) DB.technicians=['Isaiah Nartey','Lawrence Mensah'];
   if(!DB.readings) DB.readings=[];
-  saveLocal();
+  // Strip any legacy base64 photos from stored readings (old data before fix)
+  let cleaned=false;
+  DB.readings.forEach(r=>{
+    if(r.photo && r.photo.startsWith('data:')){
+      r.photo='HAS_PHOTO'; cleaned=true;
+    }
+  });
+  if(cleaned) saveLocal();
   renderAll();   // render INSTANTLY with guaranteed data
   updateBadge();
   if(isOnline) await pullRemote();
@@ -402,8 +409,20 @@ async function addReading(reading){
 async function flushQueue(){
   if(!offlineQueue.length||!isOnline) return;
   updateBadge();
+  // Strip any remaining base64 photos before push
+  DB.readings.forEach(r=>{ if(r.photo&&r.photo.startsWith('data:')) r.photo='HAS_PHOTO'; });
+  saveLocal();
   const ok=await pushRemote();
-  if(ok){ offlineQueue=[]; saveLocal(); updateBadge(); showToast('✓ Offline readings synced'); }
+  if(ok){
+    offlineQueue=[];
+    saveLocal();
+    updateBadge();
+    showToast('✓ All readings synced to server');
+  } else {
+    updateBadge();
+    // Retry after 30s
+    setTimeout(()=>{ if(isOnline&&offlineQueue.length) flushQueue(); }, 30000);
+  }
 }
 
 function queueSave(){

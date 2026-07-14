@@ -350,9 +350,13 @@ async function pullRemote(){
     const j=await r.json();
     const rec=j.record;
     if(rec&&rec.meters&&rec.meters.length){
-      // Merge: keep any local readings not yet on server
+      // Merge remote into local — preserve local photos and any unsynced readings
       const localOnly=DB.readings.filter(lr=>!rec.readings.find(rr=>rr.id===lr.id));
+      const localPhotos={};
+      DB.readings.forEach(r=>{ if(r.photo&&r.photo!=='HAS_PHOTO') localPhotos[r.id]=r.photo; });
       DB=rec;
+      // Restore photos that were stripped for JSONBin
+      DB.readings.forEach(r=>{ if(localPhotos[r.id]) r.photo=localPhotos[r.id]; });
       if(localOnly.length) DB.readings.push(...localOnly);
     } else {
       // Bin empty — push defaults up so it initialises
@@ -367,7 +371,13 @@ async function pullRemote(){
 async function pushRemote(){
   try{
     isSyncing=true; updateBadge();
-    const r=await fetch(JSONBIN,{method:'PUT',headers:{'Content-Type':'application/json','X-Access-Key':API_KEY},body:JSON.stringify(DB)});
+    // Strip photos before pushing — base64 images are too large for JSONBin
+    const dbClean = {
+      meters: DB.meters,
+      technicians: DB.technicians,
+      readings: DB.readings.map(r=>({ ...r, photo: r.photo ? 'HAS_PHOTO' : null }))
+    };
+    const r=await fetch(JSONBIN,{method:'PUT',headers:{'Content-Type':'application/json','X-Access-Key':API_KEY},body:JSON.stringify(dbClean)});
     isSyncing=false; updateBadge();
     return r.ok;
   }catch(e){ isSyncing=false; updateBadge(); return false; }
@@ -376,10 +386,12 @@ async function pushRemote(){
 async function addReading(reading){
   DB.readings.push(reading);
   saveLocal();
-  renderAll();
+  renderAll();  // render immediately — never block the UI
+  // Push in background — don't await so technician can keep working
   if(isOnline){
-    const ok=await pushRemote();
-    if(!ok){ offlineQueue.push(reading.id); saveLocal(); updateBadge(); }
+    pushRemote().then(ok=>{
+      if(!ok){ offlineQueue.push(reading.id); saveLocal(); updateBadge(); }
+    });
   } else {
     offlineQueue.push(reading.id);
     saveLocal();
@@ -399,17 +411,26 @@ function queueSave(){
   saveTimer=setTimeout(async()=>{ saveLocal(); if(isOnline) await pushRemote(); },700);
 }
 
-// Live poll every 10s for office dashboard
+// Live poll every 15s for office dashboard — skip if local has unsynced work
 setInterval(async()=>{
-  if(!isOnline||isSyncing) return;
+  if(!isOnline||isSyncing||offlineQueue.length) return;
   try{
     const r=await fetch(JSONBIN+'/latest',{headers:{'X-Access-Key':API_KEY}});
     if(!r.ok) return;
     const j=await r.json();
     const rem=j.record;
-    if(rem&&rem.readings&&rem.readings.length!==DB.readings.length){ DB=rem; saveLocal(); renderAll(); }
+    if(rem&&rem.readings&&rem.readings.length!==DB.readings.length){
+      // Only update if remote has MORE readings than local (someone else added)
+      if(rem.readings.length > DB.readings.length){
+        const localPhotos={};
+        DB.readings.forEach(r=>{ if(r.photo&&r.photo!=='HAS_PHOTO') localPhotos[r.id]=r.photo; });
+        DB=rem;
+        DB.readings.forEach(r=>{ if(localPhotos[r.id]) r.photo=localPhotos[r.id]; });
+        saveLocal(); renderAll();
+      }
+    }
   }catch(e){}
-},10000);
+},15000);
 
 /* ============================================================
    ROLE

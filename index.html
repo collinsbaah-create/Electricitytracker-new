@@ -139,7 +139,14 @@ tr:last-child td{border-bottom:none;}
         <span>WARC Electricity Monitoring</span>
       </div>
     </div>
-    <div class="live-pill"><div class="live-dot" id="liveDot"></div><span id="syncStatus">Starting…</span></div>
+    <div class="live-pill" onclick="showSyncMenu()" style="cursor:pointer;"><div class="live-dot" id="liveDot"></div><span id="syncStatus">Starting…</span></div>
+  <div id="syncMenu" style="display:none;position:fixed;top:60px;right:16px;background:#1B1F26;border:1px solid #E8893A;border-radius:12px;padding:14px;z-index:300;min-width:220px;">
+    <div style="font-size:12px;color:#8A929E;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">Sync Options</div>
+    <button onclick="retrySync()" style="width:100%;background:#1a3020;border:1px solid #39D98A;color:#39D98A;border-radius:8px;padding:10px;margin-bottom:8px;font-family:var(--font-d);font-size:13px;cursor:pointer;">↑ Retry Sync Now</button>
+    <button onclick="clearQueue()" style="width:100%;background:#301a1a;border:1px solid #E85D5D;color:#E85D5D;border-radius:8px;padding:10px;font-family:var(--font-d);font-size:13px;cursor:pointer;">✕ Clear Stuck Queue</button>
+    <div style="font-size:11px;color:#8A929E;margin-top:8px;">Clear queue if uploads are stuck.<br>Already-logged readings stay safe.</div>
+    <button onclick="document.getElementById('syncMenu').style.display='none'" style="width:100%;background:transparent;border:none;color:#8A929E;padding:8px;margin-top:4px;cursor:pointer;font-size:12px;">Close</button>
+  </div>
   </div>
 
   <div class="offline-banner" id="offlineBanner">
@@ -423,6 +430,37 @@ async function flushQueue(){
     // Retry after 30s
     setTimeout(()=>{ if(isOnline&&offlineQueue.length) flushQueue(); }, 30000);
   }
+}
+
+function showSyncMenu(){
+  const m = document.getElementById('syncMenu');
+  m.style.display = m.style.display==='none' ? 'block' : 'none';
+}
+
+async function retrySync(){
+  document.getElementById('syncMenu').style.display='none';
+  // Strip any remaining base64 photos
+  DB.readings.forEach(r=>{ if(r.photo&&r.photo.startsWith('data:')) r.photo='HAS_PHOTO'; });
+  saveLocal();
+  if(isOnline){
+    const ok = await pushRemote();
+    if(ok){ offlineQueue=[]; saveLocal(); updateBadge(); showToast('✓ Synced successfully!'); }
+    else showToast('Still failing — try Clear Stuck Queue');
+  } else {
+    showToast('No internet connection');
+  }
+}
+
+function clearQueue(){
+  offlineQueue=[];
+  // Also strip photos from all local readings to keep storage clean
+  DB.readings.forEach(r=>{ if(r.photo&&r.photo.startsWith('data:')) r.photo='HAS_PHOTO'; });
+  saveLocal();
+  updateBadge();
+  document.getElementById('syncMenu').style.display='none';
+  showToast('Queue cleared — readings are safe locally');
+  // Now try a fresh push
+  if(isOnline) pushRemote().then(ok=>{ if(ok) showToast('✓ Data synced to new bin!'); });
 }
 
 function queueSave(){
@@ -737,6 +775,14 @@ function renderAll(){
   renderMeterGrid();
   if(currentRole==='office') renderOffice();
 }
+
+document.addEventListener('click', e=>{
+  const menu = document.getElementById('syncMenu');
+  const pill = document.querySelector('.live-pill');
+  if(menu && !menu.contains(e.target) && !pill.contains(e.target)){
+    menu.style.display='none';
+  }
+});
 
 loadDB();
 </script>
